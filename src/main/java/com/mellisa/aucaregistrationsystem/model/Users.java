@@ -16,5 +16,6 @@ public class Users extends BaseModel{
     private String confirmPassword;
     private ERoles role;
     private boolean active;
+    private String profilePictureUrl;
 }
 

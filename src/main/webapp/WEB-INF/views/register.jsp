@@ -33,7 +33,7 @@
         <% if (registrationFailedFlag) { %>
         <div class="bg-red-200 text-red-700 p-2 mb-4 rounded"><%= registrationFailed %></div>
         <% } %>
-        <form action="/register" method="post" class="space-y-4">
+        <form action="/register" method="post" enctype="multipart/form-data" class="space-y-4">
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="block text-gray-700">First Name</label>
@@ -54,6 +54,11 @@
             <div>
                 <label class="block text-gray-700">Date of Birth</label>
                 <input type="date" name="dateOfBirth" required
+                       class="w-full px-4 py-2 border rounded-md focus:outline-none focus:border-blue-500">
+            </div>
+            <div>
+                <label class="block text-gray-700">Profile Picture</label>
+                <input type="file" name="profilePicture" accept="image/*"
                        class="w-full px-4 py-2 border rounded-md focus:outline-none focus:border-blue-500">
             </div>
             <div>

@@ -1,8 +1,11 @@
 package com.mellisa.aucaregistrationsystem.controller;
 
 import com.mellisa.aucaregistrationsystem.model.Course;
+import com.mellisa.aucaregistrationsystem.model.Registration;
+import com.mellisa.aucaregistrationsystem.model.Users;
 import com.mellisa.aucaregistrationsystem.services.CourseService;
 import com.mellisa.aucaregistrationsystem.services.RegistrationService;
+import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -10,6 +13,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.util.List;
 import java.util.Optional;
 
 @Controller
@@ -22,15 +26,62 @@ public class AdminController {
     @Autowired
     private RegistrationService registrationService;
 
-    // Show admin dashboard
-//    @GetMapping("/dashboard")
-//    public String showDashboard(Model model) {
-//        model.addAttribute("courses", courseService.getAllCourses());
-//        model.addAttribute("registrations", registrationService.getAllRegistrations(null, null, null));
-//        return "adminDashboard";
-//    }
+    @GetMapping("/courses")
+    public String adminDashboard(HttpSession session, Model model, @RequestParam(value = "sortBy", required = false) String sortBy) {
+        // Ensure user is logged in and is an Admin
+        Users user = (Users) session.getAttribute("loggedInUser");
+        if (user != null && "Admin".equalsIgnoreCase(user.getRole().toString())) {
+            model.addAttribute("user", user);
+            List<Course> courses ;
+            if(sortBy!=null){
+                courses = switch (sortBy) {
+                    case "name" -> courseService.getCoursesSortedByName();
+                    case "credits" -> courseService.getCoursesSortedByCredits();
+                    case "capacity" -> courseService.getCoursesSortedByCapacity();
+                    default -> courseService.getAllCourses();
+                };
+            }
+            else{
+                courses = courseService.getAllCourses();
+            }
+            model.addAttribute("courses", courses);
+            return "allCourses";
+        }
+        // Redirect to login if not authorized
+        return "redirect:/login";
+    }
 
-    // Get course details for edit modal
+    @GetMapping("/registrations")
+    public String registrations(HttpSession session, Model model) {
+        // Ensure user is logged in and is an Admin
+        Users user = (Users) session.getAttribute("loggedInUser");
+        if (user != null && "Admin".equalsIgnoreCase(user.getRole().toString())) {
+            model.addAttribute("user", user);
+            List<Registration> registrations = registrationService.getRegistrations();
+            model.addAttribute("registrations", registrations);
+            return "registrationRequests";
+        }
+        // Redirect to login if not authorized
+        return "redirect:/login";
+    }
+
+
+    @GetMapping("/api/courses/sorted")
+    @ResponseBody
+    public List<Course> getSortedCourses(@RequestParam(value = "sortBy", required = false) String sortBy) {
+        List<Course> courses;
+        if (sortBy != null) {
+            courses = switch (sortBy) {
+                case "name" -> courseService.getCoursesSortedByName();
+                case "credits" -> courseService.getCoursesSortedByCredits();
+                case "capacity" -> courseService.getCoursesSortedByCapacity();
+                default -> courseService.getAllCourses();
+            };
+        } else {
+            courses = courseService.getAllCourses();
+        }
+        return courses;
+    }
     @GetMapping("/course/{id}")
     @ResponseBody
     public ResponseEntity<Course> getCourse(@PathVariable Long id) {
@@ -50,7 +101,7 @@ public class AdminController {
         } catch (Exception e) {
             redirectAttrs.addFlashAttribute("error", "Failed to add course: " + e.getMessage());
         }
-        return "redirect:/admin/dashboard";
+        return "redirect:/admin/courses";
     }
 
     // Update existing course
@@ -64,7 +115,7 @@ public class AdminController {
         } catch (Exception e) {
             redirectAttrs.addFlashAttribute("error", "Failed to update course: " + e.getMessage());
         }
-        return "redirect:/admin/dashboard";
+        return "redirect:/admin/courses";
     }
 
     // Delete course
@@ -76,7 +127,7 @@ public class AdminController {
         } catch (Exception e) {
             redirectAttrs.addFlashAttribute("error", "Failed to delete course: " + e.getMessage());
         }
-        return "redirect:/admin/dashboard";
+        return "redirect:/admin/courses";
     }
 
     // Approve registration
@@ -88,7 +139,7 @@ public class AdminController {
         } catch (Exception e) {
             redirectAttrs.addFlashAttribute("error", "Failed to approve registration: " + e.getMessage());
         }
-        return "redirect:/admin/dashboard";
+        return "redirect:/admin/registrations";
     }
 
     // Reject registration
@@ -100,12 +151,12 @@ public class AdminController {
         } catch (Exception e) {
             redirectAttrs.addFlashAttribute("error", "Failed to reject registration: " + e.getMessage());
         }
-        return "redirect:/admin/dashboard";
+        return "redirect:/admin/registrations";
     }
 
     @ExceptionHandler(Exception.class)
     public String handleError(Exception ex, RedirectAttributes redirectAttrs) {
         redirectAttrs.addFlashAttribute("error", "An error occurred: " + ex.getMessage());
-        return "redirect:/admin/dashboard";
+        return "registrationRequests";
     }
 }
