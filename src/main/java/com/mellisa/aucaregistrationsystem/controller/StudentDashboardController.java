@@ -82,6 +82,16 @@ public class StudentDashboardController {
         }
 
         Course course = courseOptional.get();
+        if (course.getRegisteredStudents() >= course.getMaxStudents()) {
+            model.addAttribute("error", "Course is already full.");
+            return "redirect:/student";
+        }
+        boolean alreadyRegistered = student.getRegistrations().stream()
+                .anyMatch(reg -> reg.getCourse().getId().equals(courseId));
+        if (alreadyRegistered) {
+            model.addAttribute("error", "You have already registered for this course.");
+            return "studentDashboard";
+        }
 
         // Calculate total credits
         int totalCredits = student.getRegistrations().stream().mapToInt(reg -> reg.getCourse().getCreditHours()).sum();
@@ -99,7 +109,7 @@ public class StudentDashboardController {
 
         registrationService.registerCourse(registration);
 
-        return "redirect:/student";
+        return "studentDashboard";
     }
 
     // Handle dropping a course

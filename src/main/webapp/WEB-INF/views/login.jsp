@@ -192,9 +192,19 @@
             </div>
             <%String loginError = (String) request.getAttribute("error");
               boolean errorExists = loginError != null && !loginError.isEmpty();
+                String message = (String) request.getAttribute("message");
+                boolean messageSent = message != null && !message.isEmpty();
+                String reset = (String) request.getAttribute("resetSuccess");
+                boolean resetSuccess = reset != null && !reset.isEmpty();
             %>
             <% if (errorExists) { %>
             <div class="text-red-700 text-center p-2 mb-4 rounded"><%= loginError %></div>
+            <% } %>
+            <% if (messageSent) { %>
+            <div class="text-green-700 text-center p-2 mb-4 rounded"><%= message %></div>
+            <% } %>
+            <% if (resetSuccess) { %>
+            <div class="text-green-700 text-center p-2 mb-4 rounded"><%= reset %></div>
             <% } %>
             <button type="submit"
                     class="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition duration-300">
@@ -204,6 +214,10 @@
         <p class="mt-4 text-center text-gray-600">
             Don't have an account? <a href="/register" class="text-blue-600 hover:underline">Sign up</a>
         </p>
+        <p class="mt-4 text-center text-gray-600">
+            Forgot your password? <a href="/reset-password-form" class="text-blue-600 hover:underline">Reset it here</a>
+        </p>
+
     </div>
 </div>
 </body>

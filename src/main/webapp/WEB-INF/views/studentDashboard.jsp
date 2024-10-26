@@ -39,6 +39,12 @@
 </nav>
 
 <div class="container mx-auto p-6">
+    <%String error = (String) request.getAttribute("error");
+        boolean errorExists = error != null && !error.isEmpty();
+    %>
+    <% if (errorExists) { %>
+    <div class="text-red-700 text-center p-2 mb-4 rounded"><%= error %></div>
+    <% } %>
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <!-- Available Courses -->
         <div class="bg-white rounded-lg shadow-md p-6">

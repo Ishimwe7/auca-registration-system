@@ -11,14 +11,15 @@ import com.mellisa.aucaregistrationsystem.services.UserService;
 import com.mellisa.aucaregistrationsystem.types.ERoles;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -33,6 +34,10 @@ public class HomeController {
     private CourseService courseService;
     @Autowired
     private RegistrationService registrationService;
+
+    @Value("${file.upload-dir}")
+    private String uploadDir;
+
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     @GetMapping("/")
@@ -50,7 +55,7 @@ public class HomeController {
 
     // Handle form submission
     @PostMapping("/register")
-    public String registerUser(@ModelAttribute("user") Users user, Model model) {
+    public String registerUser(@ModelAttribute("user") Users user, @RequestParam("profilePicture") MultipartFile profilePicture, Model model) {
         model.asMap().clear();
         if (!user.getPassword().equals(user.getConfirmPassword())) {
             model.addAttribute("passMis", "Passwords do not match!");
@@ -60,6 +65,22 @@ public class HomeController {
             model.addAttribute("emailExists", "Email already exists!");
             return "register";
         }
+        if (!profilePicture.isEmpty()) {
+            try {
+                String filePath = uploadDir + File.separator + profilePicture.getOriginalFilename();
+                File destinationFile = new File(filePath);
+                if (!destinationFile.getParentFile().exists()) {
+                    destinationFile.getParentFile().mkdirs();
+                }
+                profilePicture.transferTo(new File(filePath));
+                user.setProfilePictureUrl("uploads/" + profilePicture.getOriginalFilename());
+            } catch (IOException e) {
+                e.printStackTrace();
+                model.addAttribute("fileError", "Failed to upload profile picture.");
+                return "register";
+            }
+        }
+
         String hashedPassword = passwordEncoder.encode(user.getPassword());
         user.setPassword(hashedPassword);
         user.setRole(ERoles.Student);
@@ -110,7 +131,7 @@ public class HomeController {
             if ("Student".equalsIgnoreCase(user.getRole().toString())) {
                 return "redirect:/studentDashboard";
             } else if ("Admin".equalsIgnoreCase(user.getRole().toString())) {
-                return "redirect:/adminDashboard";
+                return "redirect:/admin/registrations";
             }
         }
         // If login fails, show error message
@@ -144,31 +165,49 @@ public class HomeController {
         return "redirect:/login";
     }
 
-    @GetMapping("/adminDashboard")
-    public String adminDashboard(HttpSession session, Model model,@RequestParam(value = "sortBy", required = false) String sortBy) {
-        // Ensure user is logged in and is an Admin
-        Users user = (Users) session.getAttribute("loggedInUser");
-        if (user != null && "Admin".equalsIgnoreCase(user.getRole().toString())) {
-            model.addAttribute("user", user);
-            List<Course> courses ;
-            if(sortBy!=null){
-                courses = switch (sortBy) {
-                    case "name" -> courseService.getCoursesSortedByName();
-                    case "credits" -> courseService.getCoursesSortedByCredits();
-                    case "capacity" -> courseService.getCoursesSortedByCapacity();
-                    default -> courseService.getAllCourses();
-                };
-            }
-            else{
-                courses = courseService.getAllCourses();
-            }
-            List<Registration> registrations = registrationService.getRegistrations();
-            model.addAttribute("courses", courses);
-            model.addAttribute("registrations", registrations);
-            return "adminDashboard";
+    @GetMapping("/reset-password-form")
+    public String resetPasswordRequestForm() {
+        return "reset-password-request";
+    }
+
+    @PostMapping("/send-reset-link")
+    public String sendResetLink(@RequestParam String email, Model model) {
+        boolean isSent = userService.sendResetPasswordEmail(email);
+        if (isSent) {
+            model.addAttribute("message", "Reset link sent to your email.");
+        } else {
+            model.addAttribute("error", "Email not found.");
         }
-        // Redirect to login if not authorized
-        return "redirect:/login";
+        return "login";
+    }
+    @GetMapping("/reset-password")
+    public String showResetPasswordForm(@RequestParam("token") String token, Model model) {
+        if (!userService.validatePasswordResetToken(token)) {
+            model.addAttribute("errorMessage", "Invalid token or token expired.");
+            return "reset-password-request";
+        }
+        model.addAttribute("token", token);
+        return "reset-password-form";
+    }
+    @PostMapping("/update-password")
+    public String resetPassword(@RequestParam("token") String token,@RequestParam String newPassword, @RequestParam("confirmPassword") String confirmPassword, Model model) {
+        if (!userService.validatePasswordResetToken(token)) {
+            model.addAttribute("errorMessage", "Invalid token or token expired.");
+            return "reset-password-form";
+        }
+        // Validate token and update password
+        if (!newPassword.equals(confirmPassword)) {
+            model.addAttribute("errorMessage", "Passwords do not match. Please try again.");
+            return "reset-password-form";
+        }
+        boolean isUpdated = userService.resetPassword(token, newPassword);
+        if (isUpdated) {
+            model.addAttribute("resetSuccess", "Password has been reset successfully. <a href=\"/login\" class=\"text-blue-600 hover:underline\">Login</a>");
+        } else {
+            model.addAttribute("errorMessage", "Invalid token or token expired.");
+            return "reset-password-form";
+        }
+        return "login";
     }
 
     @GetMapping("/**")

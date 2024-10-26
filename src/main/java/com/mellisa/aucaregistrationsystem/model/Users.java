@@ -5,7 +5,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Entity
 @Inheritance(strategy = InheritanceType.JOINED)
@@ -16,5 +16,6 @@ public class Users extends BaseModel{
     private String confirmPassword;
     private ERoles role;
     private boolean active;
+    private String profilePictureUrl;
 }
 
