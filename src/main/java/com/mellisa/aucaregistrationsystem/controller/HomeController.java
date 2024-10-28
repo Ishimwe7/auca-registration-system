@@ -17,7 +17,6 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -45,7 +44,6 @@ public class HomeController {
         return "index";
     }
 
-
     // Show the registration form
     @GetMapping("/register")
     public String showRegistrationForm(Model model) {
@@ -55,7 +53,8 @@ public class HomeController {
 
     // Handle form submission
     @PostMapping("/register")
-    public String registerUser(@ModelAttribute("user") Users user, @RequestParam("profilePicture") MultipartFile profilePicture, Model model) {
+    public String registerUser(@ModelAttribute("user") Users user,
+            @RequestParam("profilePicture") MultipartFile profilePicture, Model model) {
         model.asMap().clear();
         if (!user.getPassword().equals(user.getConfirmPassword())) {
             model.addAttribute("passMis", "Passwords do not match!");
@@ -81,17 +80,33 @@ public class HomeController {
             }
         }
 
+        if (!profilePicture.isEmpty()) {
+            try {
+                String filePath = uploadDir + File.separator + profilePicture.getOriginalFilename();
+                File destinationFile = new File(filePath);
+                if (!destinationFile.getParentFile().exists()) {
+                    destinationFile.getParentFile().mkdirs();
+                }
+                profilePicture.transferTo(new File(filePath));
+                user.setProfilePictureUrl("uploads/" + profilePicture.getOriginalFilename());
+            } catch (IOException e) {
+                e.printStackTrace();
+                model.addAttribute("fileError", "Failed to upload profile picture.");
+                return "register";
+            }
+        }
+
         String hashedPassword = passwordEncoder.encode(user.getPassword());
         user.setPassword(hashedPassword);
         user.setRole(ERoles.Student);
         user.setActive(true);
         Users savedUser = userService.saveUser(user);
-        if(savedUser!=null){
+        if (savedUser != null) {
             Student student = new Student();
             student.setUser(savedUser);
             student.setRegistrations(new ArrayList<>());
             Student savedStudent = studentService.registerStudent(student);
-            if(savedStudent!=null){
+            if (savedStudent != null) {
                 model.addAttribute("success", "Registration successful!");
                 return "register";
             }
@@ -108,7 +123,6 @@ public class HomeController {
         return "login";
     }
 
-
     public Users validateUser(String email, String password) {
         Optional<Users> optionalUser = userService.findUserByEmail(email);
         if (optionalUser.isPresent()) {
@@ -122,9 +136,9 @@ public class HomeController {
 
     @PostMapping("/login")
     public String loginUser(@RequestParam("email") String email,
-                            @RequestParam("password") String password,
-                            HttpSession session,
-                            Model model) {
+            @RequestParam("password") String password,
+            HttpSession session,
+            Model model) {
         Users user = validateUser(email, password);
         if (user != null) {
             session.setAttribute("loggedInUser", user);
@@ -180,6 +194,7 @@ public class HomeController {
         }
         return "login";
     }
+
     @GetMapping("/reset-password")
     public String showResetPasswordForm(@RequestParam("token") String token, Model model) {
         if (!userService.validatePasswordResetToken(token)) {
@@ -189,8 +204,10 @@ public class HomeController {
         model.addAttribute("token", token);
         return "reset-password-form";
     }
+
     @PostMapping("/update-password")
-    public String resetPassword(@RequestParam("token") String token,@RequestParam String newPassword, @RequestParam("confirmPassword") String confirmPassword, Model model) {
+    public String resetPassword(@RequestParam("token") String token, @RequestParam String newPassword,
+            @RequestParam("confirmPassword") String confirmPassword, Model model) {
         if (!userService.validatePasswordResetToken(token)) {
             model.addAttribute("errorMessage", "Invalid token or token expired.");
             return "reset-password-form";
@@ -202,7 +219,8 @@ public class HomeController {
         }
         boolean isUpdated = userService.resetPassword(token, newPassword);
         if (isUpdated) {
-            model.addAttribute("resetSuccess", "Password has been reset successfully. <a href=\"/login\" class=\"text-blue-600 hover:underline\">Login</a>");
+            model.addAttribute("resetSuccess",
+                    "Password has been reset successfully. <a href=\"/login\" class=\"text-blue-600 hover:underline\">Login</a>");
         } else {
             model.addAttribute("errorMessage", "Invalid token or token expired.");
             return "reset-password-form";
